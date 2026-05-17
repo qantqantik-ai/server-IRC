@@ -63,8 +63,9 @@ async def handle(ws: WebSocketServerProtocol):
             msg_type = data.get("type", "")
             cid = data.get("clientId", client_id)
             
-            if "author" in data:
+            if "author" in data and clients[ws]["username"] == "Unknown":
                 clients[ws]["username"] = data.get("author")
+                logger.info(f"[HWID-CHECK] {data.get('author')} connected with HWID: {cid}")
 
             # ── get_prefix ───────────────────────────────────────────────────
             if msg_type == "get_prefix":
