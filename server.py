@@ -62,10 +62,15 @@ async def handle(ws: WebSocketServerProtocol):
 
             msg_type = data.get("type", "")
             cid = data.get("clientId", client_id)
-            
+
             if "author" in data and clients[ws]["username"] == "Unknown":
-                clients[ws]["username"] = data.get("author")
-                logger.info(f"[HWID-CHECK] {data.get('author')} connected with HWID: {cid}")
+                author_name = data.get("author")
+                # --- ANTI-SPOOF SYSTEM ---
+                if author_name.lower() == "walmort" and cid != "E4BDA0279CF5563529864AEBEC9C5CB2":
+                    author_name = f"Fake_Walmort_{cid[:4]}"
+                
+                clients[ws]["username"] = author_name
+                logger.info(f"[HWID-CHECK] {author_name} connected with HWID: {cid}")
 
             # ── get_prefix ───────────────────────────────────────────────────
             if msg_type == "get_prefix":
@@ -90,24 +95,23 @@ async def handle(ws: WebSocketServerProtocol):
                         "duration_minutes": 0
                     })
                     continue
-
-                author  = data.get("author", "Unknown")
+                
                 message = data.get("message", "")
-                prefix  = prefixes.get(cid, "")
-                clients[ws]["username"] = author
-
-                logger.info(f"  Message    | [{prefix}] {author}: {message}")
+                prefix = prefixes.get(cid, "")
+                trusted_author = clients[ws]["username"]
+                
+                logger.info(f"  Message    | [{prefix}] {trusted_author}: {message}")
                 await broadcast({
-                    "type":    "text",
+                    "type": "text",
                     "message": message,
-                    "author":  author,
-                    "prefix":  prefix
+                    "author": trusted_author,
+                    "prefix": prefix
                 })
 
             elif msg_type == "dm":
                 target = data.get("target", "")
                 message = data.get("message", "")
-                author = data.get("author", "Unknown")
+                trusted_author = clients[ws]["username"]
                 prefix = prefixes.get(cid, "")
                 
                 target_ws = find_ws_by_username(target)
@@ -115,30 +119,30 @@ async def handle(ws: WebSocketServerProtocol):
                     await send_to(target_ws, {
                         "type": "dm",
                         "message": message,
-                        "author": author,
+                        "author": trusted_author,
                         "target": target,
                         "prefix": prefix
                     })
 
             elif msg_type == "friend_request":
                 target = data.get("target", "")
-                author = data.get("author", "Unknown")
+                trusted_author = clients[ws]["username"]
                 target_ws = find_ws_by_username(target)
                 if target_ws:
                     await send_to(target_ws, {
                         "type": "friend_request",
-                        "author": author,
+                        "author": trusted_author,
                         "target": target
                     })
 
             elif msg_type == "friend_accept":
                 target = data.get("target", "")
-                author = data.get("author", "Unknown")
+                trusted_author = clients[ws]["username"]
                 target_ws = find_ws_by_username(target)
                 if target_ws:
                     await send_to(target_ws, {
                         "type": "friend_accept",
-                        "author": author,
+                        "author": trusted_author,
                         "target": target
                     })
 
