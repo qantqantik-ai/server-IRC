@@ -39,6 +39,12 @@ async def broadcast(obj: dict, exclude=None):
             except Exception:
                 pass
 
+def find_ws_by_username(username: str):
+    for ws, info in clients.items():
+        if info.get("username", "").lower() == username.lower():
+            return ws
+    return None
+
 
 # ── Connection handler ───────────────────────────────────────────────────────
 async def handle(ws: WebSocketServerProtocol):
@@ -56,6 +62,9 @@ async def handle(ws: WebSocketServerProtocol):
 
             msg_type = data.get("type", "")
             cid = data.get("clientId", client_id)
+            
+            if "author" in data:
+                clients[ws]["username"] = data.get("author")
 
             # ── get_prefix ───────────────────────────────────────────────────
             if msg_type == "get_prefix":
@@ -93,6 +102,44 @@ async def handle(ws: WebSocketServerProtocol):
                     "author":  author,
                     "prefix":  prefix
                 })
+
+            elif msg_type == "dm":
+                target = data.get("target", "")
+                message = data.get("message", "")
+                author = data.get("author", "Unknown")
+                prefix = prefixes.get(cid, "")
+                
+                target_ws = find_ws_by_username(target)
+                if target_ws:
+                    await send_to(target_ws, {
+                        "type": "dm",
+                        "message": message,
+                        "author": author,
+                        "target": target,
+                        "prefix": prefix
+                    })
+
+            elif msg_type == "friend_request":
+                target = data.get("target", "")
+                author = data.get("author", "Unknown")
+                target_ws = find_ws_by_username(target)
+                if target_ws:
+                    await send_to(target_ws, {
+                        "type": "friend_request",
+                        "author": author,
+                        "target": target
+                    })
+
+            elif msg_type == "friend_accept":
+                target = data.get("target", "")
+                author = data.get("author", "Unknown")
+                target_ws = find_ws_by_username(target)
+                if target_ws:
+                    await send_to(target_ws, {
+                        "type": "friend_accept",
+                        "author": author,
+                        "target": target
+                    })
 
     except websockets.exceptions.ConnectionClosed:
         pass
